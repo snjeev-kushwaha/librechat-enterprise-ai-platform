@@ -1,0 +1,109 @@
+version: "1.1.5"
+cache: true
+
+# ── Interface ──────────────────────────────────────────────────
+interface:
+  appTitle: "AI Platform"
+  # privacyPolicy:
+  #   externalUrl: "https://yourdomain.com/privacy"
+  # termsOfService:
+  #   externalUrl: "https://yourdomain.com/terms"
+  #   modalAcceptance: true
+
+# ── AI Endpoints ───────────────────────────────────────────────
+endpoints:
+  openAI:
+    titleModel: "gpt-4o-mini"
+    models:
+      default:
+        - "gpt-4o"
+        - "gpt-4o-mini"
+        - "o3-mini"
+      fetch: false
+
+  anthropic:
+    models:
+      default:
+        - "claude-opus-4-20250514"
+        - "claude-sonnet-4-20250514"
+        - "claude-haiku-4-5-20251001"
+
+  google:
+    models:
+      default:
+        - "gemini-2.5-pro-preview-05-06"
+        - "gemini-2.0-flash-001"
+
+  # Local Ollama (free, no API key needed)
+  # Uncomment if you have Ollama running
+  # custom:
+  #   - name: "Ollama (Local)"
+  #     apiKey: "ollama"
+  #     baseURL: "http://ollama:11434/v1"
+  #     models:
+  #       default: ["llama3.2", "mistral", "codestral"]
+  #       fetch: true
+  #     titleConvo: true
+  #     titleModel: "llama3.2"
+
+# ── MCP Servers ────────────────────────────────────────────────
+mcpServers:
+  # Custom Tools Server (web search, weather, calculator)
+  tools-server:
+    type: sse
+    url: "http://mcp-tools:3001/mcp"
+    headers:
+      Authorization: "Bearer ${MCP_SHARED_SECRET}"
+    timeout: 30000
+
+  # Custom Database Server (SQL queries on analytics DB)
+  db-server:
+    type: sse
+    url: "http://mcp-db:3002/mcp"
+    headers:
+      Authorization: "Bearer ${MCP_SHARED_SECRET}"
+    timeout: 60000
+
+  # Official Filesystem Server (access uploads folder)
+  filesystem:
+    type: stdio
+    command: npx
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-filesystem"
+      - "/app/uploads"
+    timeout: 15000
+
+  # GitHub MCP (per-user credentials)
+  # Users set their own GitHub token in Settings → Connected Services
+  # github:
+  #   type: sse
+  #   url: "https://api.githubcopilot.com/mcp/"
+  #   customUserVars:
+  #     GITHUB_TOKEN:
+  #       label: "GitHub Personal Access Token"
+  #       description: "Create at github.com/settings/tokens → Fine-grained tokens"
+
+# ── Agents Configuration ───────────────────────────────────────
+agents:
+  capabilities:
+    - "code_interpreter"
+    - "file_search"
+    - "web_search"
+
+# ── RAG / File Search Settings ────────────────────────────────
+fileSearch:
+  maxCitations: 10
+  maxCitationsPerFile: 4
+  minRelevanceScore: 0.45
+
+# ── Rate Limits ───────────────────────────────────────────────
+rateLimits:
+  fileUploads:
+    ipMax: 100
+    ipWindowInMinutes: 60
+    userMax: 50
+    userWindowInMinutes: 60
+  conversationsImport:
+    ipMax: 100
+    ipWindowInMinutes: 60

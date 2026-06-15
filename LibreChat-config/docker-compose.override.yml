@@ -1,0 +1,9 @@
+# LibreChat-config/docker-compose.override.yml
+# Mounted into LibreChat container to override defaults
+version: '3.8'
+services:
+  librechat:
+    volumes:
+      - ./LibreChat-config/librechat.yaml:/app/librechat.yaml
+      - ./uploads:/app/client/public/images/uploads
+      - ./logs:/app/api/logs

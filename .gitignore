@@ -1,0 +1,43 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+build/
+*/dist/
+*/build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Runtime data
+uploads/
+data-node/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+*.swp
+
+# LibreChat submodule (not committed — cloned separately)
+LibreChat/
+
+# Docker volumes (local only)
+mongodb-data/
+meili-data/
+
+# Test coverage
+coverage/
+*.lcov

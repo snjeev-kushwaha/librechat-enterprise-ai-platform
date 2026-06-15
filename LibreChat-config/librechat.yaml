@@ -1,0 +1,132 @@
+version: "1.1.5"
+cache: true
+
+# ── Interface ──────────────────────────────────────────────────
+interface:
+  appTitle: "AI Platform"
+  fileSearch: true
+  fileCitations: true
+
+# ── AI Endpoints ───────────────────────────────────────────────
+endpoints:
+  openAI:
+    titleModel: "gpt-4o-mini"
+    models:
+      - "gpt-4o"
+      - "gpt-4o-mini"
+      - "o3-mini"
+
+  anthropic:
+    models:
+      - "claude-opus-4-20250514"
+      - "claude-sonnet-4-20250514"
+      - "claude-haiku-4-5-20251001"
+
+  google:
+    models:
+      - "gemini-2.5-pro-preview-05-06"
+      - "gemini-2.0-flash-001"
+
+  # ── 🦙 Ollama (FREE local LLMs) ──────────────────────────────
+  # NOTE: custom endpoints DO use the {default, fetch} structure —
+  # this is different from openAI/anthropic/google above.
+  custom:
+    - name: "Ollama (Local - FREE)"
+      apiKey: "ollama"
+      baseURL: "http://ollama:11434/v1"
+      models:
+        default:
+          - "llama3.2"
+          - "llama3.2:1b"
+          - "mistral"
+          - "gemma2:2b"
+          - "codellama"
+        fetch: true
+      titleConvo: true
+      titleModel: "llama3.2"
+      summarize: false
+      forcePrompt: false
+      modelDisplayLabel: "Ollama"
+      dropParams:
+        - "stop"
+        - "user"
+        - "frequency_penalty"
+        - "presence_penalty"
+
+  # ── Agents (capabilities + citation settings live here) ──────
+  agents:
+    capabilities:
+      - "execute_code"
+      - "file_search"
+      - "web_search"
+      - "artifacts"
+    maxCitations: 10
+    maxCitationsPerFile: 4
+    minRelevanceScore: 0.40
+
+# ── MCP Servers ────────────────────────────────────────────────
+mcpServers:
+
+  tools-server:
+    type: sse
+    url: "http://mcp-tools:3001/mcp"
+    headers:
+      Authorization: "Bearer ${MCP_SHARED_SECRET}"
+    timeout: 30000
+
+  db-server:
+    type: sse
+    url: "http://mcp-db:3002/mcp"
+    headers:
+      Authorization: "Bearer ${MCP_SHARED_SECRET}"
+    timeout: 60000
+
+  file-analysis-server:
+    type: sse
+    url: "http://mcp-files:3003/mcp"
+    headers:
+      Authorization: "Bearer ${MCP_SHARED_SECRET}"
+    timeout: 60000
+
+  research-server:
+    type: sse
+    url: "http://mcp-research:3004/mcp"
+    headers:
+      Authorization: "Bearer ${MCP_SHARED_SECRET}"
+    timeout: 90000
+
+  filesystem:
+    type: stdio
+    command: npx
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-filesystem"
+      - "/app/uploads"
+    timeout: 15000
+
+# ── File upload config (separate from fileSearch above) ────────
+fileConfig:
+  endpoints:
+    agents:
+      fileLimit: 10
+      fileSizeLimit: 50
+      totalSizeLimit: 200
+      supportedMimeTypes:
+        - "application/pdf"
+        - "text/plain"
+        - "text/csv"
+        - "text/markdown"
+        - "application/vnd.ms-excel"
+        - "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        - "application/json"
+        - "image/jpeg"
+        - "image/png"
+        - "image/webp"
+
+# ── Rate Limits ───────────────────────────────────────────────
+rateLimits:
+  fileUploads:
+    ipMax: 200
+    ipWindowInMinutes: 60
+    userMax: 100
+    userWindowInMinutes: 60

@@ -1,0 +1,28 @@
+{
+  "name": "ai-platform",
+  "version": "1.0.0",
+  "description": "Full-stack AI platform: LibreChat + MCP + React + Node.js Gateway",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup":           "node scripts/setup.js",
+    "gen-secrets":     "node scripts/gen-secrets.js",
+    "install:all":     "npm i && cd api-gateway && npm i && cd ../react-app && npm i && cd ../mcp-servers/tools-server && npm i && cd ../db-server && npm i",
+    "dev":             "concurrently -n gateway,react,mcp-tools,mcp-db -c cyan,blue,green,yellow \"npm run dev:gateway\" \"npm run dev:react\" \"npm run dev:mcp-tools\" \"npm run dev:mcp-db\"",
+    "dev:gateway":     "cd api-gateway && npm run dev",
+    "dev:react":       "cd react-app && npm run dev",
+    "dev:mcp-tools":   "cd mcp-servers/tools-server && npm run dev",
+    "dev:mcp-db":      "cd mcp-servers/db-server && npm run dev",
+    "build:all":       "cd api-gateway && npm run build && cd ../react-app && npm run build && cd ../mcp-servers/tools-server && npm run build && cd ../db-server && npm run build",
+    "docker:up":       "docker compose up -d",
+    "docker:down":     "docker compose down",
+    "docker:logs":     "docker compose logs -f",
+    "docker:rebuild":  "docker compose up -d --build",
+    "docker:clean":    "docker compose down -v --remove-orphans",
+    "health":          "curl -s http://localhost:3080/api/health && echo '' && curl -s http://localhost:4000/health && echo '' && curl -s http://localhost:3001/health && echo '' && curl -s http://localhost:3002/health",
+    "test":            "cd api-gateway && npm test && cd ../react-app && npm test"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}

@@ -1,0 +1,168 @@
+version: '3.8'
+
+services:
+  # ── LibreChat (Core AI Engine) ──────────────────────────────
+  librechat:
+    image: ghcr.io/danny-avila/librechat-dev:latest
+    container_name: ai-platform-librechat
+    ports:
+      - "3080:3080"
+    env_file: .env
+    volumes:
+      - ./LibreChat-config/librechat.yaml:/app/librechat.yaml
+      - ./uploads:/app/client/public/images/uploads
+      - ./logs:/app/api/logs
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      meilisearch:
+        condition: service_started
+      rag_api:
+        condition: service_started
+    networks: [ai-net]
+    restart: unless-stopped
+
+  # ── MongoDB ─────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: ai-platform-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')" --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [ai-net]
+    restart: unless-stopped
+
+  # ── MeiliSearch (Full-text search) ──────────────────────────
+  meilisearch:
+    image: getmeili/meilisearch:v1.7
+    container_name: ai-platform-meili
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+      MEILI_ENV: production
+    volumes:
+      - meili-data:/meili_data
+    networks: [ai-net]
+    restart: unless-stopped
+
+  # ── PostgreSQL + pgvector (RAG embeddings) ──────────────────
+  vectordb:
+    image: pgvector/pgvector:pg16
+    container_name: ai-platform-pgvector
+    environment:
+      POSTGRES_DB: librechat
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgvector-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U ${POSTGRES_USER} -d librechat
+      interval: 10s
+      retries: 5
+    networks: [ai-net]
+    restart: unless-stopped
+
+  # ── RAG API (Document processing) ───────────────────────────
+  rag_api:
+    image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
+    container_name: ai-platform-rag
+    env_file: .env
+    depends_on:
+      vectordb:
+        condition: service_healthy
+    networks: [ai-net]
+    restart: unless-stopped
+
+  # ── Redis (Caching + Rate Limiting) ─────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ai-platform-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    networks: [ai-net]
+    restart: unless-stopped
+
+  # ── Node.js API Gateway (Your custom backend) ───────────────
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: ai-platform-gateway
+    ports:
+      - "4000:4000"
+    env_file: .env
+    environment:
+      LIBRECHAT_URL: http://librechat:3080
+      MCP_TOOLS_URL: http://mcp-tools:3001
+      MCP_DB_URL: http://mcp-db:3002
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+    depends_on:
+      - librechat
+      - redis
+    networks: [ai-net]
+    restart: unless-stopped
+
+  # ── MCP Tools Server (:3001) ─────────────────────────────────
+  mcp-tools:
+    build:
+      context: ./mcp-servers/tools-server
+      dockerfile: Dockerfile
+    container_name: ai-platform-mcp-tools
+    ports:
+      - "3001:3001"
+    env_file: .env
+    networks: [ai-net]
+    restart: unless-stopped
+
+  # ── MCP Database Server (:3002) ──────────────────────────────
+  mcp-db:
+    build:
+      context: ./mcp-servers/db-server
+      dockerfile: Dockerfile
+    container_name: ai-platform-mcp-db
+    ports:
+      - "3002:3002"
+    env_file: .env
+    networks: [ai-net]
+    restart: unless-stopped
+
+  # ── React App (Nginx static serve in prod) ───────────────────
+  react-app:
+    build:
+      context: ./react-app
+      dockerfile: Dockerfile
+    container_name: ai-platform-react
+    ports:
+      - "80:80"
+    depends_on:
+      - api-gateway
+    networks: [ai-net]
+    restart: unless-stopped
+
+  # ── Optional: Ollama (Local free LLMs) ──────────────────────
+  # Uncomment to enable:
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: ai-platform-ollama
+  #   ports: ["11434:11434"]
+  #   volumes: [ollama-data:/root/.ollama]
+  #   networks: [ai-net]
+
+volumes:
+  mongodb-data:
+  meili-data:
+  pgvector-data:
+  redis-data:
+  # ollama-data:
+
+networks:
+  ai-net:
+    driver: bridge
