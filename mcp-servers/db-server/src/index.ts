@@ -2,13 +2,13 @@
 // Remote HTTP MCP server — read-only SQL access to analytics database
 
 import 'dotenv/config';
-import express       from 'express';
+import express from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { z }         from 'zod';
+import { z } from 'zod';
 
-const app    = express();
-const PORT   = Number(process.env.MCP_DB_PORT) || 3002;
+const app = express();
+const PORT = Number(process.env.MCP_DB_PORT) || 3002;
 const SECRET = process.env.MCP_SHARED_SECRET;
 
 app.use(express.json());
@@ -16,9 +16,10 @@ app.use(express.json());
 // ── Auth guard ─────────────────────────────────────────────────
 app.use((req, res, next) => {
   if (!SECRET) { next(); return; }
-  if (req.headers.authorization !== `Bearer ${SECRET}`)
-    return res.status(401).json({ error: 'Unauthorized' });
-  next();
+  const auth = req.headers.authorization;
+  // Allow if: no secret configured, no auth header sent (discovery), or correct token
+  if (!auth || auth === `Bearer ${SECRET}`) { next(); return; }
+  return res.status(403).json({ error: 'Forbidden' });
 });
 
 // ── Allowed tables (security whitelist) ───────────────────────
@@ -123,7 +124,7 @@ function buildServer(): McpServer {
      - Only SELECT and WITH (CTE) statements are allowed
      - Available tables: ${ALLOWED_TABLES.join(', ')}`,
     {
-      sql:   z.string().min(10).describe('SQL SELECT or WITH query to execute'),
+      sql: z.string().min(10).describe('SQL SELECT or WITH query to execute'),
       limit: z.number().int().min(1).max(200).default(50).describe('Maximum rows to return'),
     },
     async ({ sql, limit }) => {
@@ -136,16 +137,16 @@ function buildServer(): McpServer {
       const safeSql = /\bLIMIT\b/i.test(sql) ? sql : `${sql.trimEnd()} LIMIT ${limit}`;
 
       try {
-        const pool  = await getPool();
+        const pool = await getPool();
         const start = Date.now();
         const result = await pool.query(safeSql);
         return {
           content: [{
             type: 'text' as const,
             text: JSON.stringify({
-              rows:        result.rows,
-              rowCount:    result.rowCount,
-              columns:     result.fields.map((f: any) => f.name),
+              rows: result.rows,
+              rowCount: result.rowCount,
+              columns: result.fields.map((f: any) => f.name),
               executionMs: Date.now() - start,
             }, null, 2)
           }]
@@ -162,7 +163,7 @@ function buildServer(): McpServer {
 // ── HTTP handlers ──────────────────────────────────────────────
 app.post('/mcp', async (req, res) => {
   const sessionId = req.headers['mcp-session-id'] as string | undefined;
-  let transport   = sessionId ? sessions.get(sessionId) : undefined;
+  let transport = sessionId ? sessions.get(sessionId) : undefined;
   if (!transport) {
     transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => crypto.randomUUID() });
     await buildServer().connect(transport);

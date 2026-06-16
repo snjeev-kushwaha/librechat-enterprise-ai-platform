@@ -60,31 +60,31 @@ export const MODEL_REGISTRY: Record<string, ModelInfo> = {
 
   // ── 🦙 Ollama (FREE — runs locally) ──────────────────────
   'llama3.2': {
-    endpoint: 'Ollama (Local - FREE)', provider: 'Ollama',
+    endpoint: 'Ollama', provider: 'Ollama',
     displayName: 'Llama 3.2 (FREE)', contextWindow: 128000,
     costPer1kIn: 0, costPer1kOut: 0,
     capabilities: ['function_calling'], isFree: true,
   },
   'llama3.2:1b': {
-    endpoint: 'Ollama (Local - FREE)', provider: 'Ollama',
+    endpoint: 'Ollama', provider: 'Ollama',
     displayName: 'Llama 3.2 1B (FREE, fast)', contextWindow: 128000,
     costPer1kIn: 0, costPer1kOut: 0,
     capabilities: [], isFree: true,
   },
   'mistral': {
-    endpoint: 'Ollama (Local - FREE)', provider: 'Ollama',
+    endpoint: 'Ollama', provider: 'Ollama',
     displayName: 'Mistral 7B (FREE)', contextWindow: 32768,
     costPer1kIn: 0, costPer1kOut: 0,
     capabilities: ['function_calling'], isFree: true,
   },
   'gemma2:2b': {
-    endpoint: 'Ollama (Local - FREE)', provider: 'Ollama',
+    endpoint: 'Ollama', provider: 'Ollama',
     displayName: 'Gemma 2 2B (FREE)', contextWindow: 8192,
     costPer1kIn: 0, costPer1kOut: 0,
     capabilities: [], isFree: true,
   },
   'codellama': {
-    endpoint: 'Ollama (Local - FREE)', provider: 'Ollama',
+    endpoint: 'Ollama', provider: 'Ollama',
     displayName: 'CodeLlama (FREE, code)', contextWindow: 100000,
     costPer1kIn: 0, costPer1kOut: 0,
     capabilities: ['code'], isFree: true,

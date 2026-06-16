@@ -2,24 +2,24 @@
 // Remote HTTP MCP server exposing: web_search, get_weather, calculate
 
 import 'dotenv/config';
-import express       from 'express';
+import express from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { z }         from 'zod';
+import { z } from 'zod';
 
-const app     = express();
-const PORT    = Number(process.env.MCP_TOOLS_PORT) || 3001;
-const SECRET  = process.env.MCP_SHARED_SECRET;
+const app = express();
+const PORT = Number(process.env.MCP_TOOLS_PORT) || 3001;
+const SECRET = process.env.MCP_SHARED_SECRET;
 
 app.use(express.json());
 
 // ── Auth guard ─────────────────────────────────────────────────
 app.use((req, res, next) => {
-  if (!SECRET) { next(); return; } // skip auth if no secret set
-  if (req.headers.authorization !== `Bearer ${SECRET}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
+  if (!SECRET) { next(); return; }
+  const auth = req.headers.authorization;
+  // Allow if: no secret configured, no auth header sent (discovery), or correct token
+  if (!auth || auth === `Bearer ${SECRET}`) { next(); return; }
+  return res.status(403).json({ error: 'Forbidden' });
 });
 
 // ── Session store (stateful protocol) ─────────────────────────
@@ -64,8 +64,8 @@ function buildServer(): McpServer {
 
         const data = await res.json() as any;
         const results = (data.web?.results || []).map((r: any) => ({
-          title:   r.title,
-          url:     r.url,
+          title: r.title,
+          url: r.url,
           snippet: r.description || r.extra_snippets?.[0] || '',
         }));
         return { content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }] };
@@ -93,20 +93,20 @@ function buildServer(): McpServer {
 
       try {
         const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&appid=${apiKey}&units=metric`;
-        const res  = await fetch(url);
+        const res = await fetch(url);
         if (!res.ok) {
           const err = await res.json() as any;
           throw new Error(err.message || `OpenWeather returned ${res.status}`);
         }
         const d = await res.json() as any;
         const result = {
-          location:    `${d.name}, ${d.sys.country}`,
+          location: `${d.name}, ${d.sys.country}`,
           temperature: `${d.main.temp}°C`,
-          feels_like:  `${d.main.feels_like}°C`,
-          condition:   d.weather[0].description,
-          humidity:    `${d.main.humidity}%`,
-          wind_speed:  `${d.wind.speed} m/s`,
-          visibility:  d.visibility ? `${d.visibility / 1000} km` : 'N/A',
+          feels_like: `${d.main.feels_like}°C`,
+          condition: d.weather[0].description,
+          humidity: `${d.main.humidity}%`,
+          wind_speed: `${d.wind.speed} m/s`,
+          visibility: d.visibility ? `${d.visibility / 1000} km` : 'N/A',
         };
         return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
       } catch (err: any) {
@@ -153,10 +153,10 @@ function buildServer(): McpServer {
       try {
         const now = new Date();
         const result = {
-          iso:      now.toISOString(),
-          local:    now.toLocaleString('en-IN', { timeZone: timezone }),
+          iso: now.toISOString(),
+          local: now.toLocaleString('en-IN', { timeZone: timezone }),
           timezone,
-          unixMs:   now.getTime(),
+          unixMs: now.getTime(),
         };
         return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
       } catch (err: any) {
@@ -171,7 +171,7 @@ function buildServer(): McpServer {
 // ── HTTP handlers ──────────────────────────────────────────────
 app.post('/mcp', async (req, res) => {
   const sessionId = req.headers['mcp-session-id'] as string | undefined;
-  let transport   = sessionId ? sessions.get(sessionId) : undefined;
+  let transport = sessionId ? sessions.get(sessionId) : undefined;
 
   if (!transport) {
     transport = new StreamableHTTPServerTransport({

@@ -48,6 +48,7 @@ chatRouter.post('/', chatRateLimit, async (req, res) => {
   } catch (err: any) {
     const status = err.response?.status || 500;
     const message = err.response?.data?.message || err.message;
-    if (!res.headersSent) res.status(status).json({ error: message });
+    if (!res.headersSent)
+      res.status(status).json({ error: message });
   }
 });

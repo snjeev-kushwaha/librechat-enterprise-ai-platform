@@ -4,7 +4,7 @@ import type { Conversation } from '../types/index.js';
 
 export function useConversations() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading,       setLoading]       = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(() => {
     const token = localStorage.getItem('gateway_token');

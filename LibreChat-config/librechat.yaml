@@ -31,7 +31,7 @@ endpoints:
   # NOTE: custom endpoints DO use the {default, fetch} structure —
   # this is different from openAI/anthropic/google above.
   custom:
-    - name: "Ollama (Local - FREE)"
+    - name: "Ollama"
       apiKey: "ollama"
       baseURL: "http://ollama:11434/v1"
       models:
@@ -46,7 +46,7 @@ endpoints:
       titleModel: "llama3.2"
       summarize: false
       forcePrompt: false
-      modelDisplayLabel: "Ollama"
+      modelDisplayLabel: "Ollama (FREE)"
       dropParams:
         - "stop"
         - "user"
@@ -66,31 +66,30 @@ endpoints:
 
 # ── MCP Servers ────────────────────────────────────────────────
 mcpServers:
-
   tools-server:
     type: sse
-    url: "http://mcp-tools:3001/mcp"
+    url: "http://host.docker.internal:3001/mcp"
     headers:
       Authorization: "Bearer ${MCP_SHARED_SECRET}"
     timeout: 30000
 
   db-server:
     type: sse
-    url: "http://mcp-db:3002/mcp"
+    url: "http://host.docker.internal:3002/mcp"
     headers:
       Authorization: "Bearer ${MCP_SHARED_SECRET}"
     timeout: 60000
 
   file-analysis-server:
     type: sse
-    url: "http://mcp-files:3003/mcp"
+    url: "http://host.docker.internal:3003/mcp"
     headers:
       Authorization: "Bearer ${MCP_SHARED_SECRET}"
     timeout: 60000
 
   research-server:
     type: sse
-    url: "http://mcp-research:3004/mcp"
+    url: "http://host.docker.internal:3004/mcp"
     headers:
       Authorization: "Bearer ${MCP_SHARED_SECRET}"
     timeout: 90000
@@ -98,10 +97,7 @@ mcpServers:
   filesystem:
     type: stdio
     command: npx
-    args:
-      - "-y"
-      - "@modelcontextprotocol/server-filesystem"
-      - "/app/uploads"
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "/app/uploads"]
     timeout: 15000
 
 # ── File upload config (separate from fileSearch above) ────────

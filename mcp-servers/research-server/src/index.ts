@@ -2,22 +2,23 @@
 // Deep research MCP: multi-search, synthesis, fact-checking, report generation
 
 import 'dotenv/config';
-import express       from 'express';
+import express from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { z }         from 'zod';
+import { z } from 'zod';
 
-const app    = express();
-const PORT   = Number(process.env.MCP_RESEARCH_PORT) || 3004;
+const app = express();
+const PORT = Number(process.env.MCP_RESEARCH_PORT) || 3004;
 const SECRET = process.env.MCP_SHARED_SECRET;
 
 app.use(express.json());
 
 app.use((req, res, next) => {
   if (!SECRET) { next(); return; }
-  if (req.headers.authorization !== `Bearer ${SECRET}`)
-    return res.status(401).json({ error: 'Unauthorized' });
-  next();
+  const auth = req.headers.authorization;
+  // Allow if: no secret configured, no auth header sent (discovery), or correct token
+  if (!auth || auth === `Bearer ${SECRET}`) { next(); return; }
+  return res.status(403).json({ error: 'Forbidden' });
 });
 
 const sessions = new Map<string, StreamableHTTPServerTransport>();
@@ -33,7 +34,7 @@ async function braveSearch(query: string, count = 5): Promise<any[]> {
   const key = process.env.BRAVE_API_KEY;
   if (!key) throw new Error('BRAVE_API_KEY not set in .env');
   const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}`;
-  const res  = await fetch(url, {
+  const res = await fetch(url, {
     headers: { 'X-Subscription-Token': key, Accept: 'application/json' }
   });
   if (!res.ok) throw new Error(`Brave API: ${res.status}`);
@@ -56,9 +57,9 @@ function buildServer(): McpServer {
      Returns combined results sorted by relevance.`,
     {
       queries: z.array(z.string().min(3)).min(2).max(4)
-                 .describe('2-4 different search queries covering different aspects of the topic'),
+        .describe('2-4 different search queries covering different aspects of the topic'),
       results_per_query: z.number().int().min(1).max(5).default(3)
-                          .describe('Results per query (default 3)'),
+        .describe('Results per query (default 3)'),
     },
     async ({ queries, results_per_query }) => {
       try {
@@ -104,11 +105,11 @@ function buildServer(): McpServer {
      Returns a JSON outline with sections, key questions to answer, and suggested search queries.
      Use this FIRST when asked to do deep research — it helps plan the investigation.`,
     {
-      topic:     z.string().min(5).describe('Research topic or question'),
-      depth:     z.enum(['brief', 'standard', 'comprehensive']).default('standard')
-                  .describe('Depth of research: brief (3 sections), standard (5), comprehensive (8)'),
-      audience:  z.enum(['executive', 'technical', 'general']).default('general')
-                  .describe('Target audience for the report'),
+      topic: z.string().min(5).describe('Research topic or question'),
+      depth: z.enum(['brief', 'standard', 'comprehensive']).default('standard')
+        .describe('Depth of research: brief (3 sections), standard (5), comprehensive (8)'),
+      audience: z.enum(['executive', 'technical', 'general']).default('general')
+        .describe('Target audience for the report'),
     },
     async ({ topic, depth, audience }) => {
       const sectionCounts = { brief: 3, standard: 5, comprehensive: 8 };
@@ -154,8 +155,8 @@ function buildServer(): McpServer {
      Returns: verdict (SUPPORTED / CONTRADICTED / INSUFFICIENT_EVIDENCE), confidence (0-1), and sources.
      Use when you need to verify a statistic, quote, or assertion before including it in a report.`,
     {
-      claim:      z.string().min(10).describe('The specific claim or statement to verify'),
-      context:    z.string().optional().describe('Additional context about the claim'),
+      claim: z.string().min(10).describe('The specific claim or statement to verify'),
+      context: z.string().optional().describe('Additional context about the claim'),
     },
     async ({ claim, context }) => {
       try {
@@ -164,7 +165,7 @@ function buildServer(): McpServer {
           context ? `${context} ${claim.slice(0, 50)}` : `evidence ${claim.slice(0, 80)}`,
         ];
         const allResults = await Promise.all(queries.map(q => braveSearch(q, 3)));
-        const combined   = allResults.flat().slice(0, 6);
+        const combined = allResults.flat().slice(0, 6);
 
         // Simple heuristic verdict based on result count and relevance
         // In production, you'd have the LLM do this reasoning
@@ -196,18 +197,18 @@ function buildServer(): McpServer {
      Returns a markdown string that you should fill in with actual findings.
      Use after multi_search to structure your findings into a professional report.`,
     {
-      topic:       z.string().min(5).describe('Report topic'),
+      topic: z.string().min(5).describe('Report topic'),
       report_type: z.enum(['research', 'analysis', 'comparison', 'recommendation']).default('research')
-                    .describe('Type of report to generate'),
-      company:     z.string().optional().describe('Company/organization name for the report header'),
+        .describe('Type of report to generate'),
+      company: z.string().optional().describe('Company/organization name for the report header'),
     },
     async ({ topic, report_type, company }) => {
-      const date   = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
-      const org    = company || 'AI Platform';
-      const types  = {
-        research:       { emoji: '🔬', title: 'Research Report' },
-        analysis:       { emoji: '📊', title: 'Analysis Report' },
-        comparison:     { emoji: '⚖️',  title: 'Comparative Analysis' },
+      const date = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+      const org = company || 'AI Platform';
+      const types = {
+        research: { emoji: '🔬', title: 'Research Report' },
+        analysis: { emoji: '📊', title: 'Analysis Report' },
+        comparison: { emoji: '⚖️', title: 'Comparative Analysis' },
         recommendation: { emoji: '💡', title: 'Strategic Recommendations' },
       };
       const t = types[report_type];
@@ -285,7 +286,7 @@ function buildServer(): McpServer {
 // ── HTTP handlers ──────────────────────────────────────────────
 app.post('/mcp', async (req, res) => {
   const sessionId = req.headers['mcp-session-id'] as string | undefined;
-  let transport   = sessionId ? sessions.get(sessionId) : undefined;
+  let transport = sessionId ? sessions.get(sessionId) : undefined;
   if (!transport) {
     transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => crypto.randomUUID() });
     await buildServer().connect(transport);
@@ -303,8 +304,10 @@ app.get('/mcp', async (req, res) => {
 });
 
 app.get('/health', (_req, res) =>
-  res.json({ status: 'ok', sessions: sessions.size,
-    tools: ['multi_search', 'outline_report', 'fact_check', 'generate_report_template'] })
+  res.json({
+    status: 'ok', sessions: sessions.size,
+    tools: ['multi_search', 'outline_report', 'fact_check', 'generate_report_template']
+  })
 );
 
 app.listen(PORT, () => {

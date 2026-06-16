@@ -84,8 +84,19 @@ export async function streamChat(params: {
     body.endpoint = 'agents';
   }
 
+  // const res = await axios.post(
+  //   `${BASE_URL}/api/ask/${encodeURIComponent(agentId ? 'agents' : endpoint)}`,
+  // NEW — custom endpoints use /api/ask/custom, name stays in body
+  const STANDARD_ROUTES = new Set([
+    'openAI', 'anthropic', 'google', 'azureOpenAI',
+    'agents', 'assistants', 'gptPlugins'
+  ]);
+  const route = agentId
+    ? 'agents'
+    : STANDARD_ROUTES.has(endpoint) ? endpoint : 'custom';
+
   const res = await axios.post(
-    `${BASE_URL}/api/ask/${agentId ? 'agents' : endpoint}`,
+    `${BASE_URL}/api/ask/${route}`,
     body,
     {
       headers: {
