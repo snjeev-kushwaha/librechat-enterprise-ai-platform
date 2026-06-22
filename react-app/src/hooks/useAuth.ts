@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { apiClient } from '../api/client.js';
 import type { User } from '../types/index.js';
 
+const BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(() => {
     try {
@@ -15,14 +17,24 @@ export function useAuth() {
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true); setError(null);
     try {
-      const res = await apiClient.post('/auth/login', { email, password });
-      const { token, user: u } = res.data;
+      // Auth endpoints are public, not under /api prefix
+      const authPath = BASE_URL === '/api' ? '/auth' : `${BASE_URL.replace('/api', '')}/auth`;
+      const res = await fetch(`${authPath}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Login failed');
+      }
+      const { token, user: u } = await res.json();
       localStorage.setItem('gateway_token', token);
       localStorage.setItem('gateway_user', JSON.stringify(u));
       setUser(u);
       return true;
     } catch (e: any) {
-      setError(e.response?.data?.error || 'Login failed');
+      setError(e.message || 'Login failed');
       return false;
     } finally { setLoading(false); }
   }, []);
@@ -30,10 +42,19 @@ export function useAuth() {
   const register = useCallback(async (name: string, email: string, password: string) => {
     setLoading(true); setError(null);
     try {
-      await apiClient.post('/auth/register', { name, email, password, confirm_password: password });
+      const authPath = BASE_URL === '/api' ? '/auth' : `${BASE_URL.replace('/api', '')}/auth`;
+      const res = await fetch(`${authPath}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, confirm_password: password }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Registration failed');
+      }
       return true;
     } catch (e: any) {
-      setError(e.response?.data?.error || 'Registration failed');
+      setError(e.message || 'Registration failed');
       return false;
     } finally { setLoading(false); }
   }, []);

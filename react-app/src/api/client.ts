@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+const BASE = (import.meta as any).env?.VITE_API_URL || '/api';
 
 export const apiClient = axios.create({ baseURL: BASE, timeout: 30_000 });
 
@@ -10,17 +10,6 @@ apiClient.interceptors.request.use(cfg => {
   return cfg;
 });
 
-// apiClient.interceptors.response.use(
-//   res => res,
-//   err => {
-//     if (err.response?.status === 401) {
-//       localStorage.removeItem('gateway_token');
-//       localStorage.removeItem('gateway_user');
-//       window.location.href = '/login';
-//     }
-//     return Promise.reject(err);
-//   }
-// );
 apiClient.interceptors.response.use(res => res, err => {
   if (err.response?.status === 401) {
     const hadToken = !!localStorage.getItem('gateway_token');

@@ -3,6 +3,7 @@ import { Router } from 'express';
 import {
   getConversations,
   deleteConversation,
+  getMessages,
   getLibreChatToken,
 } from '../services/librechatClient.js';
 
@@ -14,6 +15,18 @@ conversationsRouter.get('/', async (req, res) => {
   if (!lcToken) return res.status(401).json({ error: 'Session expired' });
   try {
     const data = await getConversations(lcToken, Number(req.query.page) || 1);
+    res.json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/conversations/:id/messages
+conversationsRouter.get('/:id/messages', async (req, res) => {
+  const lcToken = await getLibreChatToken(req.user!.id);
+  if (!lcToken) return res.status(401).json({ error: 'Session expired' });
+  try {
+    const data = await getMessages(lcToken, req.params.id);
     res.json(data);
   } catch (err: any) {
     res.status(500).json({ error: err.message });

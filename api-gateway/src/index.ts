@@ -48,6 +48,7 @@ app.get('/health', (_req, res) => res.json({
 }));
 
 app.use('/auth', authRouter);
+app.use('/api/auth', authRouter);
 
 // ── Protected routes (JWT required) ──────────────────────────────
 app.use('/api', authMiddleware, rateLimitMiddleware);

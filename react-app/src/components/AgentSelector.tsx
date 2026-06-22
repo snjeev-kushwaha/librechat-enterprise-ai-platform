@@ -9,7 +9,7 @@ export function AgentSelector({ selectedAgent, onChange }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiClient.get('/api/agents')
+    apiClient.get('/agents')
       .then(r => setAgents(r.data.agents || []))
       .catch(() => setAgents([]))
       .finally(() => setLoading(false));

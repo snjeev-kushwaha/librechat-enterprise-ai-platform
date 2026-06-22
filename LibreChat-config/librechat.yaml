@@ -37,15 +37,11 @@ endpoints:
       models:
         default:
           - "llama3.2"
-          - "llama3.2:1b"
-          - "mistral"
+          - "llama3.2:latest"
           - "gemma2:2b"
-          - "codellama"
-        fetch: true
+        fetch: false
       titleConvo: true
       titleModel: "llama3.2"
-      summarize: false
-      forcePrompt: false
       modelDisplayLabel: "Ollama (FREE)"
       dropParams:
         - "stop"
@@ -64,32 +60,40 @@ endpoints:
     maxCitationsPerFile: 4
     minRelevanceScore: 0.40
 
+# ── MCP Settings ───────────────────────────────────────────────
+mcpSettings:
+  allowedAddresses:
+    - "mcp-tools:3001"
+    - "mcp-db:3002"
+    - "mcp-files:3003"
+    - "mcp-research:3004"
+
 # ── MCP Servers ────────────────────────────────────────────────
 mcpServers:
   tools-server:
     type: sse
-    url: "http://host.docker.internal:3001/mcp"
+    url: "http://mcp-tools:3001/mcp"
     headers:
       Authorization: "Bearer ${MCP_SHARED_SECRET}"
     timeout: 30000
 
   db-server:
     type: sse
-    url: "http://host.docker.internal:3002/mcp"
+    url: "http://mcp-db:3002/mcp"
     headers:
       Authorization: "Bearer ${MCP_SHARED_SECRET}"
     timeout: 60000
 
   file-analysis-server:
     type: sse
-    url: "http://host.docker.internal:3003/mcp"
+    url: "http://mcp-files:3003/mcp"
     headers:
       Authorization: "Bearer ${MCP_SHARED_SECRET}"
     timeout: 60000
 
   research-server:
     type: sse
-    url: "http://host.docker.internal:3004/mcp"
+    url: "http://mcp-research:3004/mcp"
     headers:
       Authorization: "Bearer ${MCP_SHARED_SECRET}"
     timeout: 90000

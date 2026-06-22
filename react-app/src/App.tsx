@@ -12,7 +12,7 @@ export default function App() {
   const [agentId, setAgentId] = useState<string | undefined>();
 
   const { user, logout, isAuthenticated } = useAuth();
-  const { messages, isStreaming, error, conversationId, sendMessage, stopStreaming, clearMessages } = useChat();
+  const { messages, isStreaming, error, conversationId, sendMessage, stopStreaming, clearMessages, loadConversation } = useChat();
   const { conversations, refresh, deleteConversation } = useConversations();
 
   // Show login if not authenticated
@@ -26,9 +26,11 @@ export default function App() {
   };
 
   const handleSelectConv = (_id: string) => {
-    // TODO: load conversation from history
-    // For now, just clear and let user start fresh
-    clearMessages();
+    loadConversation(_id);
+    const selected = conversations.find(c => c.conversationId === _id);
+    if (selected) {
+      setModel(selected.model);
+    }
   };
 
   return (

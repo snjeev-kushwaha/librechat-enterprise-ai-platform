@@ -9,7 +9,7 @@ export function useModels() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiClient.get('/api/models')
+    apiClient.get('/models')
       .then(r => { setModels(r.data.models); setGrouped(r.data.grouped); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));

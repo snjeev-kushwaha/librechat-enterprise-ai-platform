@@ -4,8 +4,9 @@
 import 'dotenv/config';
 import express from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { z } from 'zod';
+import crypto from 'node:crypto';
 
 const app = express();
 const PORT = Number(process.env.MCP_TOOLS_PORT) || 3001;
@@ -16,14 +17,18 @@ app.use(express.json());
 // ── Auth guard ─────────────────────────────────────────────────
 app.use((req, res, next) => {
   if (!SECRET) { next(); return; }
+  // Allow discovery probes & healthchecks without auth
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS' || req.path === '/health') {
+    next();
+    return;
+  }
   const auth = req.headers.authorization;
-  // Allow if: no secret configured, no auth header sent (discovery), or correct token
-  if (!auth || auth === `Bearer ${SECRET}`) { next(); return; }
-  return res.status(403).json({ error: 'Forbidden' });
+  if (auth === `Bearer ${SECRET}`) { next(); return; }
+  return res.status(401).json({ error: 'Unauthorized' });
 });
 
 // ── Session store (stateful protocol) ─────────────────────────
-const sessions = new Map<string, StreamableHTTPServerTransport>();
+const sessions = new Map<string, SSEServerTransport>();
 
 // Clean up idle sessions every 5 min
 setInterval(() => {
@@ -169,32 +174,37 @@ function buildServer(): McpServer {
 }
 
 // ── HTTP handlers ──────────────────────────────────────────────
-app.post('/mcp', async (req, res) => {
-  const sessionId = req.headers['mcp-session-id'] as string | undefined;
-  let transport = sessionId ? sessions.get(sessionId) : undefined;
-
-  if (!transport) {
-    transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => crypto.randomUUID(),
-    });
-    const server = buildServer();
-    await server.connect(transport);
-    if (transport.sessionId) sessions.set(transport.sessionId, transport);
-  }
+app.get('/mcp', async (req, res) => {
+  const transport = new SSEServerTransport('/mcp', res);
+  const sessionId = transport.sessionId;
+  sessions.set(sessionId, transport);
+  console.log(`[Tools Server] GET /mcp: Created session ${sessionId}`);
+  
   (transport as any).lastActivity = Date.now();
-  await transport.handleRequest(req, res, req.body);
+  
+  const server = buildServer();
+  await server.connect(transport);
+  
+  req.on('close', () => {
+    console.log(`[Tools Server] Connection closed for session ${sessionId}`);
+    sessions.delete(sessionId);
+  });
 });
 
-app.get('/mcp', async (req, res) => {
-  const sessionId = req.headers['mcp-session-id'] as string | undefined;
-  const transport = sessionId ? sessions.get(sessionId) : undefined;
-  if (!transport) return res.status(404).json({ error: 'Session not found' });
+app.post('/mcp', async (req, res) => {
+  const sessionId = req.query.sessionId as string;
+  console.log(`[Tools Server] POST /mcp: Lookup session ${sessionId}. Active sessions:`, Array.from(sessions.keys()));
+  const transport = sessions.get(sessionId);
+  if (!transport) {
+    console.log(`[Tools Server] POST /mcp: Session ${sessionId} not found`);
+    return res.status(404).json({ error: 'Session not found or expired' });
+  }
   (transport as any).lastActivity = Date.now();
-  await transport.handleRequest(req, res);
+  await transport.handlePostMessage(req, res, req.body);
 });
 
 app.delete('/mcp', async (req, res) => {
-  const sessionId = req.headers['mcp-session-id'] as string | undefined;
+  const sessionId = req.query.sessionId as string;
   if (sessionId) sessions.delete(sessionId);
   res.status(200).json({ ok: true });
 });

@@ -14,7 +14,7 @@ export function useConversations() {
       return; // not logged in — don't call the API at all
     }
     setLoading(true);
-    apiClient.get('/api/conversations')
+    apiClient.get('/conversations')
       .then(r => setConversations(r.data.conversations || []))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -23,7 +23,7 @@ export function useConversations() {
   useEffect(() => { refresh(); }, [refresh]);
 
   const deleteConversation = async (id: string) => {
-    await apiClient.delete(`/api/conversations/${id}`);
+    await apiClient.delete(`/conversations/${id}`);
     setConversations(prev => prev.filter(c => c.conversationId !== id));
   };
 

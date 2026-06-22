@@ -8,12 +8,12 @@ describe('resolveEndpoint', () => {
   it('maps Claude Sonnet → anthropic', () => expect(resolveEndpoint('claude-sonnet-4-20250514')).toBe('anthropic'));
   it('maps Claude Opus → anthropic', () => expect(resolveEndpoint('claude-opus-4-20250514')).toBe('anthropic'));
   it('maps Gemini Pro → google', ()  => expect(resolveEndpoint('gemini-2.5-pro-preview-05-06')).toBe('google'));
-  it('maps Llama → custom', ()       => expect(resolveEndpoint('llama3.2')).toBe('custom'));
+  it('maps Llama → ollama', ()       => expect(resolveEndpoint('llama3.2')).toBe('ollama'));
   it('throws for unknown model', ()  => expect(() => resolveEndpoint('unknown-xyz')).toThrow('Unknown model'));
 });
 
 describe('recommendModel', () => {
-  it('returns llama3.2 for free tier',     () => expect(recommendModel({ budgetTier: 'free' })).toBe('llama3.2'));
+  it('returns llama3.2:latest for free tier', () => expect(recommendModel({ budgetTier: 'free' })).toBe('llama3.2:latest'));
   it('returns o3-mini for reasoning',      () => expect(recommendModel({ budgetTier: 'standard', needsReasoning: true })).toBe('o3-mini'));
   it('returns gemini for huge context',    () => expect(recommendModel({ budgetTier: 'standard', contextLength: 500_000 })).toBe('gemini-2.5-pro-preview-05-06'));
   it('returns gpt-4o-mini for cheap tier', () => expect(recommendModel({ budgetTier: 'cheap' })).toBe('gpt-4o-mini'));

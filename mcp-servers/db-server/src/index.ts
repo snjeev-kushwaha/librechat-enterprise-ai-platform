@@ -4,8 +4,9 @@
 import 'dotenv/config';
 import express from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { z } from 'zod';
+import crypto from 'node:crypto';
 
 const app = express();
 const PORT = Number(process.env.MCP_DB_PORT) || 3002;
@@ -16,10 +17,14 @@ app.use(express.json());
 // ── Auth guard ─────────────────────────────────────────────────
 app.use((req, res, next) => {
   if (!SECRET) { next(); return; }
+  // Allow discovery probes & healthchecks without auth
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS' || req.path === '/health') {
+    next();
+    return;
+  }
   const auth = req.headers.authorization;
-  // Allow if: no secret configured, no auth header sent (discovery), or correct token
-  if (!auth || auth === `Bearer ${SECRET}`) { next(); return; }
-  return res.status(403).json({ error: 'Forbidden' });
+  if (auth === `Bearer ${SECRET}`) { next(); return; }
+  return res.status(401).json({ error: 'Unauthorized' });
 });
 
 // ── Allowed tables (security whitelist) ───────────────────────
@@ -37,7 +42,7 @@ function isSafeQuery(sql: string): { safe: boolean; reason?: string } {
 }
 
 // ── Session store ──────────────────────────────────────────────
-const sessions = new Map<string, StreamableHTTPServerTransport>();
+const sessions = new Map<string, SSEServerTransport>();
 
 setInterval(() => {
   sessions.forEach((t, id) => {
@@ -161,23 +166,29 @@ function buildServer(): McpServer {
 }
 
 // ── HTTP handlers ──────────────────────────────────────────────
-app.post('/mcp', async (req, res) => {
-  const sessionId = req.headers['mcp-session-id'] as string | undefined;
-  let transport = sessionId ? sessions.get(sessionId) : undefined;
-  if (!transport) {
-    transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => crypto.randomUUID() });
-    await buildServer().connect(transport);
-    if (transport.sessionId) sessions.set(transport.sessionId, transport);
-  }
+app.get('/mcp', async (req, res) => {
+  const transport = new SSEServerTransport('/mcp', res);
+  const sessionId = transport.sessionId;
+  sessions.set(sessionId, transport);
+  
   (transport as any).lastActivity = Date.now();
-  await transport.handleRequest(req, res, req.body);
+  
+  const server = buildServer();
+  await server.connect(transport);
+  
+  req.on('close', () => {
+    sessions.delete(sessionId);
+  });
 });
 
-app.get('/mcp', async (req, res) => {
-  const t = sessions.get(req.headers['mcp-session-id'] as string);
-  if (!t) return res.status(404).json({ error: 'Session not found' });
-  (t as any).lastActivity = Date.now();
-  await t.handleRequest(req, res);
+app.post('/mcp', async (req, res) => {
+  const sessionId = req.query.sessionId as string;
+  const transport = sessions.get(sessionId);
+  if (!transport) {
+    return res.status(404).json({ error: 'Session not found or expired' });
+  }
+  (transport as any).lastActivity = Date.now();
+  await transport.handlePostMessage(req, res, req.body);
 });
 
 app.get('/health', (_req, res) => {

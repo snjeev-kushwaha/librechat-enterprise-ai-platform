@@ -5,6 +5,7 @@ import {
   loginToLibreChat,
   registerInLibreChat,
   setLibreChatToken,
+  setLibreChatRefreshToken,
 } from '../services/librechatClient.js';
 
 export const authRouter = Router();
@@ -19,10 +20,17 @@ authRouter.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'email and password are required' });
 
   try {
-    const { user, token: lcToken } = await loginToLibreChat(email, password);
+    const { user, token: lcToken, refreshToken } = await loginToLibreChat(email, password);
 
-    // Store LibreChat token (for API impersonation)
+    // Store LibreChat access token (14-min TTL to match LC's short expiry)
     await setLibreChatToken(user.id, lcToken);
+
+    // Store refresh token so we can silently renew the access token
+    if (refreshToken) {
+      await setLibreChatRefreshToken(user.id, refreshToken);
+    } else {
+      console.warn('[Auth] No refresh token in LibreChat login response — token renewal will require re-login');
+    }
 
     // Issue Gateway JWT
     const gatewayToken = jwt.sign(

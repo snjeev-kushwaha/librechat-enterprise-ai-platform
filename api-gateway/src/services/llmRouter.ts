@@ -59,42 +59,33 @@ export const MODEL_REGISTRY: Record<string, ModelInfo> = {
   },
 
   // ── 🦙 Ollama (FREE — runs locally) ──────────────────────
+  // Model IDs must exactly match what `ollama list` reports (with tags).
+  // LibreChat fetches the list from Ollama's /v1/models and validates
+  // against those exact IDs.
   'llama3.2': {
-    endpoint: 'Ollama', provider: 'Ollama',
+    endpoint: 'ollama', provider: 'Ollama',
     displayName: 'Llama 3.2 (FREE)', contextWindow: 128000,
     costPer1kIn: 0, costPer1kOut: 0,
     capabilities: ['function_calling'], isFree: true,
   },
-  'llama3.2:1b': {
-    endpoint: 'Ollama', provider: 'Ollama',
-    displayName: 'Llama 3.2 1B (FREE, fast)', contextWindow: 128000,
-    costPer1kIn: 0, costPer1kOut: 0,
-    capabilities: [], isFree: true,
-  },
-  'mistral': {
-    endpoint: 'Ollama', provider: 'Ollama',
-    displayName: 'Mistral 7B (FREE)', contextWindow: 32768,
+  'llama3.2:latest': {
+    endpoint: 'ollama', provider: 'Ollama',
+    displayName: 'Llama 3.2 (FREE)', contextWindow: 128000,
     costPer1kIn: 0, costPer1kOut: 0,
     capabilities: ['function_calling'], isFree: true,
   },
   'gemma2:2b': {
-    endpoint: 'Ollama', provider: 'Ollama',
+    endpoint: 'ollama', provider: 'Ollama',
     displayName: 'Gemma 2 2B (FREE)', contextWindow: 8192,
     costPer1kIn: 0, costPer1kOut: 0,
     capabilities: [], isFree: true,
-  },
-  'codellama': {
-    endpoint: 'Ollama', provider: 'Ollama',
-    displayName: 'CodeLlama (FREE, code)', contextWindow: 100000,
-    costPer1kIn: 0, costPer1kOut: 0,
-    capabilities: ['code'], isFree: true,
   },
 };
 
 export function resolveEndpoint(model: string): string {
   const entry = MODEL_REGISTRY[model];
   if (!entry) throw new Error(`Unknown model: "${model}". Check MODEL_REGISTRY in llmRouter.ts`);
-  return entry.endpoint;
+  return entry.endpoint;   // returns "Ollama" → route becomes /api/agents/chat/Ollama
 }
 
 export function getGroupedModels(): Record<string, (ModelInfo & { id: string })[]> {
@@ -112,7 +103,7 @@ export function recommendModel(task: {
   contextLength?: number;
 }): string {
   const { needsReasoning, budgetTier, contextLength = 0 } = task;
-  if (budgetTier === 'free') return 'llama3.2';
+  if (budgetTier === 'free') return 'llama3.2:latest';
   if (needsReasoning) return 'o3-mini';
   if (contextLength > 200_000) return 'gemini-2.5-pro-preview-05-06';
   if (budgetTier === 'cheap') return 'gpt-4o-mini';
