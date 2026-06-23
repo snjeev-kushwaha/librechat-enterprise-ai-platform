@@ -14,6 +14,36 @@ const SECRET = process.env.MCP_SHARED_SECRET;
 
 app.use(express.json());
 
+// Helper to verify JWT token signed with GATEWAY_JWT_SECRET using Node crypto
+function isValidUserToken(authHeader: string | undefined): boolean {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+  const token = authHeader.slice(7);
+  const jwtSecret = process.env.GATEWAY_JWT_SECRET;
+  if (!jwtSecret) return false;
+
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const [headerB64, payloadB64, signatureB64] = parts;
+
+    // Verify signature using HMAC SHA256
+    const hmac = crypto.createHmac('sha256', jwtSecret);
+    hmac.update(`${headerB64}.${payloadB64}`);
+    const expectedSignature = hmac.digest('base64url');
+
+    if (signatureB64 !== expectedSignature) return false;
+
+    // Check expiration
+    const payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString('utf8'));
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 app.use((req, res, next) => {
   if (!SECRET) { next(); return; }
   // Allow discovery probes & healthchecks without auth
@@ -23,6 +53,7 @@ app.use((req, res, next) => {
   }
   const auth = req.headers.authorization;
   if (auth === `Bearer ${SECRET}`) { next(); return; }
+  if (isValidUserToken(auth)) { next(); return; }
   return res.status(401).json({ error: 'Unauthorized' });
 });
 

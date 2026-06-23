@@ -19,7 +19,7 @@ const PORT = Number(process.env.GATEWAY_PORT) || 4000;
 //   credentials: true,
 // }));
 const localhostPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
-console.log(process.env.ALLOWED_ORIGINS, '++++++++++++++++++++++')
+
 app.use(cors({
   origin: (origin, callback) => {
     // No origin = curl, server-to-server, Postman — allow it
